@@ -1,0 +1,37 @@
+Arguments: 
+  /home/noan/.nvm/versions/node/v16.15.0/bin/node /home/noan/.node/corepack/yarn/1.22.15/bin/yarn.js add express socket.io
+
+PATH: 
+  /home/noan/.local/bin/:/home/noan/.nvm/versions/node/v16.15.0/bin:/home/noan/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games:/sbin:/usr/sbin
+
+Yarn version: 
+  1.22.15
+
+Node version: 
+  16.15.0
+
+Platform: 
+  linux x64
+
+Trace: 
+  Error: getaddrinfo ENOTFOUND registry.yarnpkg.com
+      at GetAddrInfoReqWrap.onlookup [as oncomplete] (node:dns:71:26)
+
+npm manifest: 
+  {
+    "name": "google-meet",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+      "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "author": "",
+    "license": "ISC"
+  }
+
+yarn manifest: 
+  No manifest
+
+Lockfile: 
+  No lockfile

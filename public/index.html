@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Google Meet</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="Assets/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <!-- <link rel="stylesheet" href="Assets/css/materialize.min.css"> -->
+  <link rel="stylesheet" href="Assets/css/style.css">
+</head>
+
+<body>
+
+  <main class="d-flex flex-column home-wrap">
+    <div class="g-top ">
+
+      <div class="top-remote-video-show-wrap d-flex">
+
+        <div id="meetingContainer" class="w-75" style="display: none;">
+
+          <div class="call-wrap" style="background-color: black;">
+
+            <div class="video-wrap" id="divUsers" style="display: flex; flex-wrap: wrap;">
+              <div id="me" class="userbox display-center flex-column">
+                <h2 class="display-center" style="font-size: 14px;"></h2>
+                <div class="display-cetner">
+                  <video autoplay muted id="localVideoPlayer"></video>
+                </div>
+              </div>
+            </div>
+
+            <div id="otherTemplate" class="userbox display-center flex-column" style="display: none;">
+              <h2 class="display-center" style="font-size: 14px;"></h2>
+              <div class="display-center">
+                <video autoplay muted></video>
+                <audio autoplay controls muted style="display: none;"></audio>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="g-top-left bg-light tex-secondary w-25 d-flex align-items-center justify-content-between pl-2 pr-2">
+
+        <div class="top-left-participant-wrap pt-2 cursor-pointer">
+          <div class="top-left-participant-icon">
+            <span class="material-icons">people</span>
+          </div>
+          <div class="top-left-participant-count">12</div>
+        </div>
+
+        <div class="top-left-chat-wrap pt-2 cursor-pointer">
+          <span class="material-icons">message</span>
+        </div>
+
+        <div class="top-left-time-wrap"></div>
+
+      </div>
+
+    </div>
+
+    <div class="g-bottom bg-light m-0 d-flex justify-content-between align-items-center">
+
+      <div class="bottom-left d-flex" style="height: 10vh">
+        <div class="display-center cursor-pointer meeting-details-button">
+          Meeting Details
+          <span class="material-icons">keyboard_arrow_down</span>
+        </div>
+      </div>
+
+      <div class="bottom-middle d-flex justify-content-center align-items-center" style="height: 10vh;">
+        <div class="mic-toggle-wrap action-icon-style display-center mr-2 cursor-pointer" id="miceMuteUnmute">
+          <span class="material-icons">mic_off</span>
+        </div>
+
+        <div class="end-call-wrap action-icon-style display-center mr-2 cursor-pointer">
+          <span class="material-icons text-danger">call</span>
+        </div>
+
+        <div class="video-toggle-wrap action-icon-style display-center cursor-pointer" id="videoCamOnOff">
+          <span class="material-icons">videocam_off</span>
+        </div>
+      </div>
+
+      <div class="bottom-right d-flex justify-content-center align-items-center mr-3" style="height: 10vh;">
+        <div
+          class="present-now-wrap d-flex just-content-center flex-column align-items-center mr-5 cursor-pointer"
+          id="btnScreenShareOnOff"
+        >
+          <span class="material-icons">present_to_all</span>
+          <div>Present Now</div>
+        </div>
+
+
+        <div class="option-wrap cursor-pointer display-center" style="height: 10vh; position:relative;">
+          <div class="option-icon">
+            <span class="material-icons">more_vert</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="Assets/js/jquery-3.4.1.min.js" type="text/javascript"></script>
+  <script src="https://cdn.socket.io/4.5.0/socket.io.min.js" integrity="sha384-7EyYLQZgWBi67fBtVxw60/OWl1kjsfrPFcaU0pp0nAh+i8FD068QogUvg85Ewy1k" crossorigin="anonymous"></script>
+  <script src="Assets/js/app.js" type="text/javascript"></script>
+  <script type="text/javascript">
+    $(function () {
+      const urlParams = new URLSearchParams(window.location.search);
+      var meeting_id = urlParams.get('meetingId');
+      var user_id = window.prompt('Enter your username');
+
+      if (!user_id || !meeting_id) {
+        alert('User id or meeting id missing');
+        window.location.href = '/action.html'
+        return;
+      }
+
+
+      $("meetingContainer").show();
+
+      MyApp._init(user_id, meeting_id);
+    })
+
+  </script>
+
+</body>
+
+</html>
