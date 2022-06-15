@@ -8,7 +8,7 @@ var AppProcess = (function() {
     local_video_div,
     audio,
     isAudioMute = true,
-    rtp_aud_senders,
+    rtp_aud_senders = [],
     video_states = {
       None: 0,
       Camera: 1,
@@ -89,13 +89,15 @@ var AppProcess = (function() {
   }
 
   async function updateMediaSenders(track, rtp_senders) {
-    console.log('[+] updateMediaSenders')
+    console.log('[+] updateMediaSenders: ', peers_connection_ids.length)
     for (var con_id in peers_connection_ids) {
       if (connection_status(peers_connection[con_id])) {
         
         if (rtp_senders[con_id] && rtp_senders[con_id].track) {
+          console.log('[+] replaceTrack')
           rtp_senders[con_id].replaceTrack(track);
         } else {
+          console.log('[+] addTrack')
           rtp_senders[con_id] = peers_connection[con_id].addTrack(track);
         }
 
@@ -185,22 +187,30 @@ var AppProcess = (function() {
   }
 
   async function setNewConnection(connId) {
+    console.log('[+] setNewConnection')
     // https://developer.mozilla.org/en-US/docs/Glossary/ICE
     var connection = new RTCPeerConnection(iceConfiguration);
 
     // step 3.1: Hình thức tự đề cử kết nối
     connection.onicecandidate = function(event) {
+      console.log('[+] onicecandidate')
       if (event.candidate) {
-        serverProcess(
-          JSON.stringify({ icecandidate: event.candidate }),
-          connId
-        );
+        console.log('[+] candidate: ', event.candidate)
+        setTimeout(() => {
+          serverProcess(
+            JSON.stringify({ icecandidate: event.candidate }),
+            connId
+          );
+        }, 1000 * 1)
       }
     }
 
     // step 3.3: Quá trình thương lượng candidate(ứng viên) đã kết thúc
     connection.onnegotiationneeded = async function(event) {
-      await setOffer(connId);
+      console.log('[+] onnegotiationneeded')
+      setTimeout(async () => {
+        await setOffer(connId);
+      }, 1000 * 10)
     };
 
     connection.ontrack = function(event) {
@@ -245,8 +255,7 @@ var AppProcess = (function() {
       [video_states.Camera, video_states.ScreenShare].includes(video_st) &&
       videoCamTrack
     ) {
-      console.log('[+] after contrack')
-
+      console.log('[+] after setNewConnection')
       updateMediaSenders(videoCamTrack, rtp_vid_senders);
     }
 
@@ -255,9 +264,12 @@ var AppProcess = (function() {
 
   // step 3.4: Gửi offer (DSP - local) đến remote peer thông qua socket 
   async function setOffer(connId) {
+    console.log('[+] setOffer')
     var connection = peers_connection[connId];
+    console.log('[+] create Offer')
     var offer = await connection.createOffer();
 
+    console.log('[+] setLocalDescription')
     await connection.setLocalDescription(offer);
 
     serverProcess(
@@ -270,12 +282,15 @@ var AppProcess = (function() {
     message = JSON.parse(message);
 
     if (message.answer) {
+      console.log('[+] SDP answer')
+      console.log('[+] setRemoteDescription')
       // step 3.4: Nhận được answer từ remote 
       //    -> Lưu lại answer (remote SDP)
       await peers_connection[from_connId]
         .setRemoteDescription(new RTCSessionDescription(message.answer));
 
     } else if (message.offer) {
+      console.log('[+] SDP offer')
       // step 3.5: Nhận đươc offer từ remote 
       //    -> lưu lại remote SDP 
       //    -> Gửi answer (SDP - local) thông qua socket 
@@ -283,11 +298,14 @@ var AppProcess = (function() {
         await setNewConnection(from_connId);
       }
 
+      console.log('[+] setRemoteDescription')
       await peers_connection[from_connId]
         .setRemoteDescription(new RTCSessionDescription(message.offer));
 
+      console.log('[+] create answer')
       var answer = await peers_connection[from_connId].createAnswer();
 
+      console.log('[+] setLocalDescription')
       await peers_connection[from_connId].setLocalDescription(answer);
 
       serverProcess(
@@ -295,10 +313,12 @@ var AppProcess = (function() {
         from_connId
       )
     } else if (message.icecandidate) { // step 3.2: thêm ứng candiate nếu có lời đề nghị
+      console.log('[+] SDP icecandidate')
       if (!peers_connection[from_connId]) {
         await setNewConnection(from_connId);
       }
       try {
+        console.log('[+] addICeCandidate')
         await peers_connection[from_connId].addIceCandidate(message.icecandidate);
       } catch (e) {
         console.log('[-] error: add ice candidate - ', e)
