@@ -66,6 +66,12 @@ textarea:focus, input:focus {
   position: relative;
 }
 
+.top-remote-video-show-wrap {
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
 .video-wrap {
   height: 600px;
 }
@@ -86,6 +92,15 @@ textarea:focus, input:focus {
 .top-left-participant-wrap {
   position: relative;
 
+}
+
+.userbox h2 {
+  color: white;
+}
+
+video {
+  border: 1px solid grey;
+  width: 300px;
 }
 
 .cursor-pointer {
@@ -134,4 +149,8 @@ textarea:focus, input:focus {
 .end-call-wrap {
   -ms-transform: rotate(135deg);
   transform: rotate(135deg);
+}
+
+.bottom-middle .material-icons {
+  width: 100%;
 }

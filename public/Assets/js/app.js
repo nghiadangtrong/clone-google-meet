@@ -1,7 +1,7 @@
 var AppProcess = (function() {
   var peers_connection_ids = [],
     peers_connection = []
-    remote_vid_stream = [],
+  remote_vid_stream = [],
     remote_audi_stream = [];
   var serverProcess,
     my_connection_id, // id my socket
@@ -15,8 +15,9 @@ var AppProcess = (function() {
       ScreenShare: 2
     },
     video_st = video_states.None,
-    videoCamTrack
-  ;
+    videoCamTrack,
+    rtp_vid_senders = []
+    ;
 
   async function _init(SDP_function, my_connId) {
     serverProcess = SDP_function;
@@ -27,6 +28,7 @@ var AppProcess = (function() {
   }
 
   function eventProcess() {
+    console.log('[+] eventProcess')
     $("#miceMuteUnmute").on("click", async () => {
       // Load audio từ thiết bị
       if (!audio) {
@@ -39,11 +41,11 @@ var AppProcess = (function() {
 
       if (isAudioMute) {
         audio.enabled = true;
-        $(this).html("<span class='material-icon'>mic</span>");
+        $(this).html("<span class='material-icons'>mic</span>");
         updateMediaSenders(audio, rtp_aud_senders);
       } else {
         audio.enabled = false;
-        $(this).html("<span class='material-icon'>mic-off</span>")
+        $(this).html("<span class='material-icons'>mic-off</span>")
         removeMediaSenders(rtp_aud_senders);
       }
       isAudioMute = !isAudioMute;
@@ -66,8 +68,76 @@ var AppProcess = (function() {
     })
   }
 
-  async function videoProcess(newVideoState) {
+  async function loadAudio() {
     try {
+      var astream = await navigator.mediaDevices.getUserMedia({
+        video: false,
+        audio: true,
+      })
+      audio = astream.getAudioTracks()[0];
+      audio.enabled = false;
+    } catch(e) {
+      console.log(e)
+    }
+  }
+
+  function connection_status(connection) {
+    if (connection && ["new", "connecting", "connected"].includes(connection.connectionState)) {
+      return true;
+    }
+    return false;
+  }
+
+  async function updateMediaSenders(track, rtp_senders) {
+    console.log('[+] updateMediaSenders')
+    for (var con_id in peers_connection_ids) {
+      if (connection_status(peers_connection[con_id])) {
+        
+        if (rtp_senders[con_id] && rtp_senders[con_id].track) {
+          rtp_senders[con_id].replaceTrack(track);
+        } else {
+          rtp_senders[con_id] = peers_connection[con_id].addTrack(track);
+        }
+
+      }
+    }
+  }
+
+  function removeMediaSenders (rtp_senders) {
+    for (var con_id in peers_connection_ids) {
+      if(rtp_senders[con_id] && connection_status(peers_connection[con_id])) {
+        peers_connection[con_id].removeTrack(rtp_senders[con_id]);
+        rtp_senders[con_id] = null;
+      }
+    }
+  }
+
+  function removeVideoStream(rtp_vid_senders) {
+    if (videoCamTrack) {
+      videoCamTrack.stop();
+      videoCamTrack = null;
+      local_video_div.srcObject = null;
+      removeMediaSenders(rtp_vid_senders)
+    }
+  }
+
+  async function videoProcess(newVideoState) {
+    if (newVideoState === video_states.None) {
+      $("#videoCamOnOff").html("<span class='material-icons'>videocam_off</span>");
+
+      video_st = newVideoState;
+
+      removeVideoStream(rtp_vid_senders);
+
+      return;
+    }
+
+    if (newVideoState === video_states.Camera) {
+      $("#videoCamOnOff").html("<span class='material-icons'>videocam_on</span>")
+    }
+
+    try {
+      console.log('[+] video Process')
       var vstream = null;
       if (newVideoState === video_states.Camera) {
         vstream = await navigator.mediaDevices.getUserMedia({
@@ -77,7 +147,7 @@ var AppProcess = (function() {
           },
           audio: false
         })
-      } else  if (newVideoState === video_states.ScreenShare) {
+      } else if (newVideoState === video_states.ScreenShare) {
         vstream = await navigator.mediaDevices.getDisplayMedia({
           video: {
             width: 1920,
@@ -90,12 +160,12 @@ var AppProcess = (function() {
       if (vstream && vstream.getVideoTracks().length > 0) {
         videoCamTrack = vstream.getVideoTracks()[0];
         if (videoCamTrack) {
-          local_video_div.srcObject = new MediaStream([ videoCamTrack ]);
-          window.alert("Found camera")
+          local_video_div.srcObject = new MediaStream([videoCamTrack]);
+          updateMediaSenders(videoCamTrack, rtp_vid_senders);
         }
       }
 
-    } catch(e) {
+    } catch (e) {
       console.log('[-] videoProcess: ', e)
       return;
     }
@@ -134,6 +204,7 @@ var AppProcess = (function() {
     };
 
     connection.ontrack = function(event) {
+      console.log('[+] ontrack')
       if (!remote_vid_stream[connId]) {
         remote_vid_stream[connId] = new MediaStream();
       }
@@ -169,6 +240,15 @@ var AppProcess = (function() {
 
     peers_connection_ids[connId] = connId;
     peers_connection[connId] = connection;
+
+    if (
+      [video_states.Camera, video_states.ScreenShare].includes(video_st) &&
+      videoCamTrack
+    ) {
+      console.log('[+] after contrack')
+
+      updateMediaSenders(videoCamTrack, rtp_vid_senders);
+    }
 
     return connection;
   }
@@ -251,7 +331,7 @@ var MyApp = (function() {
     $("#meetingContainer").show();
     $("#me h2").text(user_id + "(Me)");
     document.title = user_id;
-    
+
     event_process_for_signaling_server();
   }
 
