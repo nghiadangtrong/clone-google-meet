@@ -1,7 +1,7 @@
 var AppProcess = (function() {
   var peers_connection_ids = [],
-    peers_connection = []
-  remote_vid_stream = [],
+    peers_connection = [],
+    remote_vid_stream = [],
     remote_audi_stream = [];
   var serverProcess,
     my_connection_id, // id my socket
@@ -127,6 +127,10 @@ var AppProcess = (function() {
     if (newVideoState === video_states.None) {
       $("#videoCamOnOff").html("<span class='material-icons'>videocam_off</span>");
 
+      $("#btnScreenShareOnOff").html(`
+        <span class="material-icons">present_to_all</span> 
+        <div>Present Now</div>
+      `);
       video_st = newVideoState;
 
       removeVideoStream(rtp_vid_senders);
@@ -134,9 +138,6 @@ var AppProcess = (function() {
       return;
     }
 
-    if (newVideoState === video_states.Camera) {
-      $("#videoCamOnOff").html("<span class='material-icons'>videocam_on</span>")
-    }
 
     try {
       console.log('[+] video Process')
@@ -157,6 +158,14 @@ var AppProcess = (function() {
           },
           audio: false
         })
+
+        vstream.oninactive = (e) => {
+          console.log('[+] oninactive')
+          removeVideoStream(rtp_vid_senders);
+          $("#btnScreenShareOnOff").html(
+            '<span class="material-icons">present_to_all</span><div>Present Now</div>'
+          )
+        }
       }
 
       if (vstream && vstream.getVideoTracks().length > 0) {
@@ -173,6 +182,18 @@ var AppProcess = (function() {
     }
 
     video_st = newVideoState;
+
+    if (newVideoState === video_states.Camera) {
+      $("#videoCamOnOff").html("<span class='material-icons'>videocam_on</span>")
+      $("#btnScreenShareOnOff").html(
+        '<span class="material-icons">present_to_all</span><div>Present Now</div>'
+      )
+    } else {
+      $("#videoCamOnOff").html("<span class='material-icons'>videocam_off</span>")
+      $("#btnScreenShareOnOff").html(
+        '<span class="material-icons text-success">present_to_all</span><div class="text-success">Stop Present Now</div>'
+      )
+    }
   }
 
   var iceConfiguration = {
@@ -191,26 +212,21 @@ var AppProcess = (function() {
     // https://developer.mozilla.org/en-US/docs/Glossary/ICE
     var connection = new RTCPeerConnection(iceConfiguration);
 
-    // step 3.1: Hình thức tự đề cử kết nối
     connection.onicecandidate = function(event) {
       console.log('[+] onicecandidate')
       if (event.candidate) {
         console.log('[+] candidate: ', event.candidate)
-        setTimeout(() => {
-          serverProcess(
-            JSON.stringify({ icecandidate: event.candidate }),
-            connId
-          );
-        }, 1000 * 1)
+        serverProcess(
+          JSON.stringify({ icecandidate: event.candidate }),
+          connId
+        );
       }
     }
 
-    // step 3.3: Quá trình thương lượng candidate(ứng viên) đã kết thúc
+    // Quá trình thương lượng candidate(ứng viên) đã kết thúc
     connection.onnegotiationneeded = async function(event) {
       console.log('[+] onnegotiationneeded')
-      setTimeout(async () => {
-        await setOffer(connId);
-      }, 1000 * 10)
+      await setOffer(connId);
     };
 
     connection.ontrack = function(event) {
@@ -262,7 +278,7 @@ var AppProcess = (function() {
     return connection;
   }
 
-  // step 3.4: Gửi offer (DSP - local) đến remote peer thông qua socket 
+  // Gửi offer (DSP - local) đến remote peer thông qua socket 
   async function setOffer(connId) {
     console.log('[+] setOffer')
     var connection = peers_connection[connId];
@@ -284,14 +300,14 @@ var AppProcess = (function() {
     if (message.answer) {
       console.log('[+] SDP answer')
       console.log('[+] setRemoteDescription')
-      // step 3.4: Nhận được answer từ remote 
+      // Nhận được answer từ remote 
       //    -> Lưu lại answer (remote SDP)
       await peers_connection[from_connId]
         .setRemoteDescription(new RTCSessionDescription(message.answer));
 
     } else if (message.offer) {
       console.log('[+] SDP offer')
-      // step 3.5: Nhận đươc offer từ remote 
+      // Nhận đươc offer từ remote 
       //    -> lưu lại remote SDP 
       //    -> Gửi answer (SDP - local) thông qua socket 
       if (!peers_connection[from_connId]) {
@@ -312,7 +328,7 @@ var AppProcess = (function() {
         JSON.stringify({ answer: answer }),
         from_connId
       )
-    } else if (message.icecandidate) { // step 3.2: thêm ứng candiate nếu có lời đề nghị
+    } else if (message.icecandidate) { // Thêm ứng candiate nếu có lời đề nghị
       console.log('[+] SDP icecandidate')
       if (!peers_connection[from_connId]) {
         await setNewConnection(from_connId);
@@ -326,6 +342,28 @@ var AppProcess = (function() {
     }
   }
 
+  async function closeConnection(connId) {
+    peers_connection_ids[connId] = null;
+    if (peers_connection[connId]) {
+      peers_connection[connId].close();
+      peers_connection[connId] = null;
+    }
+
+    if (remote_vid_stream[connId]) {
+      remote_vid_stream[connId].getTracks().forEach(t => {
+        if (t.stop) t.stop();
+      })
+      remote_vid_stream[connId] = null;
+    }
+
+    if (remote_audi_stream[connId]) {
+      remote_audi_stream[connId].getTracks().forEach(t => {
+        if (t.stop) t.stop();
+      })
+      remote_audi_stream[connId] = null;
+    }
+  }
+
   return {
     init: async function(SDP_function, my_connid) {
       await _init(SDP_function, my_connid);
@@ -335,6 +373,9 @@ var AppProcess = (function() {
     },
     processClientFunc: async function(message, from_connId) {
       await SDPProcess(message, from_connId);
+    },
+    closeConnectionCall: async function (connId) {
+      await closeConnection(connId);
     }
   }
 })();
@@ -366,7 +407,7 @@ var MyApp = (function() {
       })
     }
 
-    // step 1: Đăng ký user_id vs connect to meeting by id
+    // Đăng ký user_id vs connect to meeting by id
     socket.on("connect", function() {
       if (!socket.connected) {
         return;
@@ -394,16 +435,24 @@ var MyApp = (function() {
     })
 
 
-    // step 2: Lắng nghe khi có kết nối mới vào meeting
+    // Lắng nghe khi có kết nối mới vào meeting
     socket.on("inform_others_about_me", function(data) {
       addUser(data.other_user_id, data.connId);
-      // Step 3: Tạo kết nốt PeerConnect
+      // Tạo kết nốt PeerConnect
       AppProcess.setNewConnection(data.connId);
     })
 
-    // step 3.x: Lắng nghe trao đổi SDP (session description protocol) thông qua socket
+    // Lắng nghe trao đổi SDP (session description protocol) thông qua socket
     socket.on("SDPProcess", async function(data) {
       await AppProcess.processClientFunc(data.message, data.from_connId)
+    })
+
+
+    // Lắng nghe remote client disconnect
+    socket.on("inform_other_about_disconnected_user", async function (data) {
+      console.log('[+] close connection: ', data.connId)
+      $('#'+data.connId).remove();
+      await AppProcess.closeConnectionCall(data.connId)
     })
   }
 

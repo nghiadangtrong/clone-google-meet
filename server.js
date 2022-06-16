@@ -51,4 +51,22 @@ io.on('connection', (socket) => {
       from_connId: socket.id
     })
   })
+
+  socket.on("disconnect", () => {
+    let disUser = userConnections.find(user => user.connectionId === socket.id)
+    console.log('goi disconnect')
+    if (!disUser) {
+      return;
+    }
+    let meeting_id = disUser.meeting_id;
+    userConnections = userConnections.filter(user => user.connectionId !== socket.id);
+    let other_users = userConnections.filter(user => user.meeting_id === meeting_id);
+    console.log('[+] other_users: ', other_users.length)
+    other_users.forEach(user => {
+      socket.to(user.connectionId).emit(
+        "inform_other_about_disconnected_user",
+        { connId: socket.id }
+      )
+    })
+  })
 })
