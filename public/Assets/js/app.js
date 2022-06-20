@@ -429,8 +429,9 @@ var MyApp = (function() {
       if (!Array.isArray(other_users)) {
         return
       }
+      var userNumber = other_users.length + 1;
       other_users.forEach(other_user => {
-        addUser(other_user['user_id'], other_user['connectionId'])
+        addUser(other_user['user_id'], other_user['connectionId'], userNumber);
         AppProcess.setNewConnection(other_user['connectionId'])
       })
     })
@@ -438,7 +439,7 @@ var MyApp = (function() {
 
     // Lắng nghe khi có kết nối mới vào meeting
     socket.on("inform_others_about_me", function(data) {
-      addUser(data.other_user_id, data.connId);
+      addUser(data.other_user_id, data.connId, data.userNumber);
       // Tạo kết nốt PeerConnect
       AppProcess.setNewConnection(data.connId);
     })
@@ -453,6 +454,8 @@ var MyApp = (function() {
     socket.on("inform_other_about_disconnected_user", async function(data) {
       console.log('[+] close connection: ', data.connId)
       $('#' + data.connId).remove();
+      $(".participant-count").text(data.userNumber);
+      $("#participant_" + data.connId).remove();
       await AppProcess.closeConnectionCall(data.connId)
     })
 
@@ -463,7 +466,7 @@ var MyApp = (function() {
     })
   }
 
-  function addMessageToDOM (fromUser, message) {
+  function addMessageToDOM(fromUser, message) {
     var time = new Date();
     var lTime = time.toLocaleString("en-US", {
       hour: "numeric",
@@ -485,7 +488,7 @@ var MyApp = (function() {
     })
   }
 
-  function addUser(other_user_id, connId) {
+  function addUser(other_user_id, connId, userNumber) {
     var newDivId = $('#otherTemplate').clone();
     newDivId = newDivId.attr('id', connId).addClass('other');
     newDivId.find('h2').text(other_user_id);
@@ -493,7 +496,60 @@ var MyApp = (function() {
     newDivId.find('audio').attr('id', 'a_' + connId);
     newDivId.show();
     $("#divUsers").append(newDivId);
+
+    $(".in-call-wrap-up").append(`
+      <div class="in-call-wrap d-flex justify-content-between align-items-center mb-3" id="participant_${connId}">
+        <div class="participant-img-name-wrap display-center cursor-pointer">
+          <div class="participant-img">
+            <img src="Assets/images/other.jpg" alt="" class="border border-secondary" style="height: 40px; width: 40px; border-radius: 50%;" />
+          </div>
+          <div class="participant-name ml-2">${other_user_id}</div>
+        </div>
+        <div class="participant-action-wrap display-center">
+          <div class="participant-action-dot display-center cursor-pointer">
+            <span class="material-icons">more_vert</span>
+          </div>
+
+          <div class="participant-action-pin display-center mr-2 cursor-pointer">
+            <span class="material-icons">push_pin</span>
+          </div>
+        </div>
+      </div>
+    `);
+
+    $(".participant-count").text(userNumber);
+
   }
+
+  $(document).on("click", ".people-heading", function() {
+    $(".in-call-wrap-up").show(300);
+    $(".chat-show-wrap").hide(300);
+    $(this).addClass('active');
+    $(".chat-heading").removeClass('active');
+  })
+
+  $(document).on("click", ".chat-heading", function() {
+    $(".in-call-wrap-up").hide(300);
+    $(".chat-show-wrap").show(300);
+    $(this).addClass('active');
+    $(".people-heading").removeClass('active');
+  })
+
+  $(document).on("click", ".meeting-heading-cross", function () {
+    $(".g-right-details-wrap").hide(300);
+  })
+
+  $(document).on("click", ".top-left-participant-wrap", function () {
+    $(".g-right-details-wrap").show(300);
+    $(".in-call-wrap-up").show(300);
+    $(".chat-show-wrap").hide(300);
+  })
+
+  $(document).on("click", ".top-left-chat-wrap", function () {
+    $(".g-right-details-wrap").show(300);
+    $(".in-call-wrap-up").hide(300);
+    $(".chat-show-wrap").show(300);
+  })
 
   return {
     _init: function(uid, mid) {

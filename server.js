@@ -33,11 +33,13 @@ io.on('connection', (socket) => {
       meeting_id: data.meeting_id
     })
 
+    var userCount = other_users.length + 1;
     // Gửi thông tin client mới cho các client khác ở trong team
     other_users.forEach(userConnect => {
       socket.to(userConnect.connectionId).emit("inform_others_about_me", {
         other_user_id: data.user_id,
-        connId: socket.id
+        connId: socket.id,
+        userNumber: userCount
       })
     })
 
@@ -80,10 +82,14 @@ io.on('connection', (socket) => {
     let meeting_id = disUser.meeting_id;
     userConnections = userConnections.filter(user => user.connectionId !== socket.id);
     let other_users = userConnections.filter(user => user.meeting_id === meeting_id);
+    let userNumberAfUserLeave = other_users.length;
     other_users.forEach(user => {
       socket.to(user.connectionId).emit(
         "inform_other_about_disconnected_user",
-        { connId: socket.id }
+        {
+          connId: socket.id,
+          userNumber: userNumberAfUserLeave
+        }
       )
     })
   })
