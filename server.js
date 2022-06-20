@@ -52,6 +52,25 @@ io.on('connection', (socket) => {
     })
   })
 
+  socket.on("sendMessage", function (msg) {
+    var mUser = userConnections.find(u => u.connectionId === socket.id);
+    console.log("[+] send message: ", msg)
+    if (!mUser) {
+      return 
+    }
+    var meetingId = mUser.meeting_id;
+    var from = mUser.user_id;
+    var users = userConnections.filter(u => u.meeting_id === meetingId);
+
+    users.forEach(v => {
+      console.log('[+] send to user_id: ', v.user_id)
+      socket.to(v.connectionId).emit("showChatMessage", {
+        from: from,
+        message: msg
+      })
+    })
+  })
+
   socket.on("disconnect", () => {
     let disUser = userConnections.find(user => user.connectionId === socket.id)
     console.log('goi disconnect')
@@ -61,7 +80,6 @@ io.on('connection', (socket) => {
     let meeting_id = disUser.meeting_id;
     userConnections = userConnections.filter(user => user.connectionId !== socket.id);
     let other_users = userConnections.filter(user => user.meeting_id === meeting_id);
-    console.log('[+] other_users: ', other_users.length)
     other_users.forEach(user => {
       socket.to(user.connectionId).emit(
         "inform_other_about_disconnected_user",

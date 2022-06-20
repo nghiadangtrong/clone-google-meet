@@ -76,7 +76,7 @@ var AppProcess = (function() {
       })
       audio = astream.getAudioTracks()[0];
       audio.enabled = false;
-    } catch(e) {
+    } catch (e) {
       console.log(e)
     }
   }
@@ -92,7 +92,7 @@ var AppProcess = (function() {
     console.log('[+] updateMediaSenders: ', peers_connection_ids.length)
     for (var con_id in peers_connection_ids) {
       if (connection_status(peers_connection[con_id])) {
-        
+
         if (rtp_senders[con_id] && rtp_senders[con_id].track) {
           console.log('[+] replaceTrack')
           rtp_senders[con_id].replaceTrack(track);
@@ -105,9 +105,9 @@ var AppProcess = (function() {
     }
   }
 
-  function removeMediaSenders (rtp_senders) {
+  function removeMediaSenders(rtp_senders) {
     for (var con_id in peers_connection_ids) {
-      if(rtp_senders[con_id] && connection_status(peers_connection[con_id])) {
+      if (rtp_senders[con_id] && connection_status(peers_connection[con_id])) {
         peers_connection[con_id].removeTrack(rtp_senders[con_id]);
         rtp_senders[con_id] = null;
       }
@@ -374,7 +374,7 @@ var AppProcess = (function() {
     processClientFunc: async function(message, from_connId) {
       await SDPProcess(message, from_connId);
     },
-    closeConnectionCall: async function (connId) {
+    closeConnectionCall: async function(connId) {
       await closeConnection(connId);
     }
   }
@@ -394,6 +394,7 @@ var MyApp = (function() {
     document.title = user_id;
 
     event_process_for_signaling_server();
+    eventHandeling();
   }
 
 
@@ -449,10 +450,38 @@ var MyApp = (function() {
 
 
     // Lắng nghe remote client disconnect
-    socket.on("inform_other_about_disconnected_user", async function (data) {
+    socket.on("inform_other_about_disconnected_user", async function(data) {
       console.log('[+] close connection: ', data.connId)
-      $('#'+data.connId).remove();
+      $('#' + data.connId).remove();
       await AppProcess.closeConnectionCall(data.connId)
+    })
+
+    // listen new text message 
+    socket.on("showChatMessage", (data) => {
+      console.log('[+] showChatMessage: ', data)
+      addMessageToDOM(data.from, data.message);
+    })
+  }
+
+  function addMessageToDOM (fromUser, message) {
+    var time = new Date();
+    var lTime = time.toLocaleString("en-US", {
+      hour: "numeric",
+      minute: "numeric",
+      hour12: true
+    });
+    var div = $("<div>").html(
+      `<span class='font-weight-bold mr-3' style='color: black'>${fromUser}</span>${lTime}<br/> ${message}`
+    );
+    $("#messages").append(div);
+  }
+
+  function eventHandeling() {
+    $("#btnsend").on("click", function() {
+      let inputMsg = $("#msgbox").val();
+      socket.emit("sendMessage", inputMsg);
+      addMessageToDOM(user_id + '(me)', inputMsg);
+      $("#msgbox").val("")
     })
   }
 
