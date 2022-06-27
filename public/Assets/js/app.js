@@ -464,6 +464,15 @@ var MyApp = (function() {
       console.log('[+] showChatMessage: ', data)
       addMessageToDOM(data.from, data.message);
     })
+
+    socket.on("showFileMessage", (data) => {
+      addLinkAttachFileToDom({
+        filePath: data.filePath,
+        fileName: data.fileName,
+        meetingId: data.meetingId,
+        userId: data.userId
+      })
+    })
   }
 
   function addMessageToDOM(fromUser, message) {
@@ -630,6 +639,80 @@ var MyApp = (function() {
     $(".g-details-heading-show-attachment").hide();
     $(this).addClass('active');
     $(".g-details-heading-attachment").removeClass('active');
+  })
+
+  var base_url = window.location.origin;
+  
+  $(document).on('change', "#customFile", function () {
+    var filename = $(this).val().split("\\").pop();
+    // console.log('[+] value: ', $(this).val().split("\\"));
+    $(this).siblings(".custom-file-label").addClass("selected").html(filename)
+  })
+
+  const addLinkAttachFileToDom = ({ filePath, fileName, meetingId, userId }) => {
+    var time = (new Date()).toLocaleString('en-US', {
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: true
+    });
+    var attachFileElement = document.querySelector(".show-attach-file");
+    attachFileElement.innerHTML += `
+      <div class="left-align d-flex align-items-center">
+        <img src="Assets/images/other.jpg" 
+          class="caller-image circle" 
+          style="height: 40px; width: 40px;"/>
+        <div style="font-weight: 600; margin: 0 5px;">${userId}</div>:
+        <div>
+          <a style="color: #007bff;" href="${filePath}">${fileName}</a>
+          <div class="text-secondary">${time}</div>
+        </div>
+      </div>
+    `;
+
+    $("label.custom-file-label").text("");
+  }
+
+  $(document).on('click', '.share-attach', function (e) {
+    e.preventDefault();
+    var _this = this;
+    // input file
+    var att_img = $('#customFile').prop('files')[0];
+    var formData = new FormData();
+    formData.append("zipfile", att_img);
+    formData.append("meetingId", meeting_id);
+    formData.append("userId", user_id);
+    if (!att_img) {
+      return; 
+    }
+    $(_this).attr({ 'disabled': true})
+    $.ajax({
+      url: base_url+"/attach-img",
+      type: "POST",
+      data: formData,
+      contentType: false,
+      processData: false,
+      success: function (response) {
+        $(_this).attr({ 'disabled': false})
+        $('#customFile').val("")
+        addLinkAttachFileToDom({
+          fileName: response.fileName,
+          filePath: response.filePath,
+          meetingId: response.meetingId,
+          userId: response.userId
+        }) 
+
+        socket.emit("fileTransferToOther", {
+          fileName: response.fileName,
+          filePath: response.filePath,
+          meetingId: response.meetingId,
+          userId: response.userId
+        })
+      },
+      error: function () {
+        console.log("[-] Error send form")
+        $(_this).attr({ 'disabled': false})
+      }
+    })
   })
 
   return {

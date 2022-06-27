@@ -1,5 +1,7 @@
 const express = require("express");
 const path = require("path");
+const fs = require("fs");
+const fileUpload = require("express-fileupload");
 const app = express();
 const port = 3000;
 
@@ -8,8 +10,37 @@ app.use(express.static(path.join(__dirname, "public")));
 
 const server = require("http").createServer(app);
 
+app.use(fileUpload());
+app.post("/attach-img", function(req, res) {
+  var data = req.body;
+  var imageFile = req.files.zipfile;
+  if (!imageFile) {
+    return res.send(400, 'Required File')
+  }
+  // validate meeting_id vs user_id
+  var dir = `public/attachment/${data.meetingId}/`;
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true })
+  }
 
-server.listen(port, function () {
+  let fileName = `${new Date().getTime()}_${imageFile.name}`;
+  let filePath = `${dir}/${fileName}`;
+
+  imageFile.mv(filePath, function(error) {
+    if (error) {
+      return res.send(500, error);
+    }
+    return res.json({ 
+      filePath: filePath.replace('public/', ''), 
+      fileName: fileName,
+      meetingId: data.meetingId,
+      userId: data.userId,
+    })
+  })
+})
+
+
+server.listen(port, function() {
   console.log(`[+] Server is running on port ${port}`);
 });
 
@@ -21,7 +52,7 @@ var userConnections = [];
 
 io.on('connection', (socket) => {
   console.log('socket id is', socket.id);
-  
+
   socket.on("userconnect", (data) => {
 
     console.log('data: ', data)
@@ -54,11 +85,11 @@ io.on('connection', (socket) => {
     })
   })
 
-  socket.on("sendMessage", function (msg) {
+  socket.on("sendMessage", function(msg) {
     var mUser = userConnections.find(u => u.connectionId === socket.id);
     console.log("[+] send message: ", msg)
     if (!mUser) {
-      return 
+      return
     }
     var meetingId = mUser.meeting_id;
     var from = mUser.user_id;
@@ -70,6 +101,24 @@ io.on('connection', (socket) => {
         from: from,
         message: msg
       })
+    })
+  })
+
+  socket.on("fileTransferToOther", function (data) {
+    let mUser = userConnections.find(
+      u => u.connectionId === socket.id
+    );
+
+    if (!mUser) {
+      console.log('[-] Not Found connection Id')
+      return;
+    }
+
+    var otherUsers = userConnections.filter(
+      u => (u.meeting_id === data.meetingId || u.meeting_id === data.meeting_id)
+    )
+    otherUsers.forEach(user => {
+      socket.to(user.connectionId).emit("showFileMessage", data)
     })
   })
 
