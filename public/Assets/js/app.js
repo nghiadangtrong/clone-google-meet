@@ -715,6 +715,82 @@ var MyApp = (function() {
     })
   })
 
+
+  /******** start record ********/
+  var mediaRecorder;
+  var chunks = [];
+
+  $(document).on('click', '.option-icon', function () {
+    $('.record-show').toggle(300);
+  })
+
+  $(document).on('click', '.start-recording', function () {
+    $(this).removeClass()
+      .addClass('btn stop-recording text-secondary')
+      .text('Stop recording')
+
+    startRecording();
+  })
+
+  $(document).on('click', '.stop-recording', function () {
+    $(this).removeClass()
+      .addClass('btn start-recording text-danger')
+      .text("Start recording")
+    mediaRecorder.stop();
+  })
+
+  function getScreenStream () {
+    return navigator.mediaDevices.getDisplayMedia({
+      video: true
+    })
+  } 
+
+  function getAudioStream () {
+    return navigator.mediaDevices.getUserMedia({
+      video: false,
+      audio: true
+    })
+  }
+
+
+  async function startRecording() {
+    var screenStream = await getScreenStream();
+    var audioStream = await getAudioStream();
+    var stream = new MediaStream([
+      ...screenStream.getTracks(), 
+      ...audioStream.getTracks()
+    ]);
+
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.start();
+    mediaRecorder.onstop = function () {
+      console.log('[+] onstop')
+      stream.getTracks().forEach(track => track.stop());
+      
+      var data = new Blob(chunks, {
+        type: 'video/webm'
+      });
+      chunks = [];
+      var url = window.URL.createObjectURL(data);
+      var a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = 'true'
+      document.body.append(a);
+      a.click();
+
+      setTimeout(() => {
+        a.remove();
+        window.URL.revokeObjectURL(url)
+      }, 200);
+    }
+
+    mediaRecorder.ondataavailable = function (a) {
+      console.log('[+] ondataavailable')
+      chunks.push(a.data);
+    }
+  }
+
   return {
     _init: function(uid, mid) {
       init(uid, mid);

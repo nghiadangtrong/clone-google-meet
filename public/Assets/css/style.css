@@ -194,3 +194,9 @@ video {
   font-size: 14px;
   padding-left: 10px;
 }
+
+.record-show {
+  position: absolute;
+  margin-bottom: 200px;
+  display: none;
+}
