@@ -764,18 +764,18 @@ var MyApp = (function() {
     mediaRecorder = new MediaRecorder(stream);
     mediaRecorder.start();
     mediaRecorder.onstop = function () {
-      console.log('[+] onstop')
+      var clipname = prompt("Enter a name for your recording");
       stream.getTracks().forEach(track => track.stop());
       
-      var data = new Blob(chunks, {
+      var blob = new Blob(chunks, {
         type: 'video/webm'
       });
       chunks = [];
-      var url = window.URL.createObjectURL(data);
+      var url = window.URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.style.display = 'none';
       a.href = url;
-      a.download = 'true'
+      a.download = `${clipname}.webm`
       document.body.append(a);
       a.click();
 
